@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in · Drone GCS</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:Manrope,system-ui,sans-serif;color:#eaf4ff;background:#070d18;overflow:hidden}
+.orb{position:fixed;border-radius:50%;filter:blur(90px);opacity:.55;animation:f 14s ease-in-out infinite alternate}
+.o1{width:480px;height:480px;background:#1f6fff;top:-120px;left:-100px}.o2{width:420px;height:420px;background:#12d6a8;bottom:-140px;right:-80px;animation-delay:-6s}.o3{width:300px;height:300px;background:#ff9d3d;top:45%;left:55%;opacity:.3;animation-delay:-3s}
+@keyframes f{to{transform:translate(70px,50px) scale(1.15)}}
+form{position:relative;width:min(380px,92vw);padding:34px;border-radius:24px;background:rgba(20,30,50,.45);border:1px solid rgba(255,255,255,.2);backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);box-shadow:0 20px 60px rgba(0,0,0,.5);display:grid;gap:14px}
+h1{margin:0;font-size:26px;font-weight:800}p{margin:0 0 6px;color:#9db3d1}
+input{width:100%;padding:14px 16px;border-radius:14px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font:inherit;transition:.2s}
+input:focus{outline:none;border-color:#4fd1ff;box-shadow:0 0 0 4px rgba(79,209,255,.2)}
+button{position:relative;overflow:hidden;padding:14px;border:0;border-radius:14px;font:800 15px Manrope;color:#04121f;background:linear-gradient(120deg,#4fd1ff,#6ee7b7);cursor:pointer;transition:transform .15s,box-shadow .2s}
+button:hover{box-shadow:0 8px 28px rgba(79,209,255,.45);transform:translateY(-1px)}button:active{transform:scale(.97)}
+.err{color:#ff7b88;min-height:18px;font-size:13px}.shake{animation:s .4s}@keyframes s{25%{transform:translateX(-9px)}75%{transform:translateX(9px)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head><body><i class="orb o1"></i><i class="orb o2"></i><i class="orb o3"></i>
+<form id="f"><div><h1>Drone GCS</h1><p>Sign in to control the aircraft.</p></div>
+<input id="u" placeholder="Username" autocomplete="username" required><input id="p" type="password" placeholder="Password" autocomplete="current-password" required>
+<div class="err" id="e"></div><button id="b">Sign in</button></form>
+<script>
+f.onsubmit=async ev=>{ev.preventDefault();b.textContent='Signing in…';
+const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:u.value,password:p.value})});
+if(r.ok)location='/';else{e.textContent='Wrong username or password.';b.textContent='Sign in';f.classList.remove('shake');void f.offsetWidth;f.classList.add('shake')}}
+</script></body></html>

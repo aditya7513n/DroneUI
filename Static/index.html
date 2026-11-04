@@ -1,0 +1,90 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Drone GCS</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--g:rgba(14,22,38,.55);--b:rgba(255,255,255,.17);--t:#eaf4ff;--m:#9db3d1;--ok:#3ddc97;--bad:#ff5d6c;--acc:#4fd1ff;--amb:#ffb547}
+*{box-sizing:border-box}html,body,#map{height:100%;margin:0}body{font:14px Manrope,system-ui,sans-serif;color:var(--t)}
+.glass{position:absolute;z-index:1000;background:var(--g);border:1px solid var(--b);border-radius:18px;backdrop-filter:blur(20px) saturate(165%);-webkit-backdrop-filter:blur(20px) saturate(165%);box-shadow:0 10px 36px rgba(0,0,0,.4);padding:12px}
+#top{top:12px;left:12px;right:12px;display:flex;gap:20px;align-items:center;flex-wrap:wrap}#top b{font-size:16px;font-weight:800;margin-right:auto}
+.s{color:var(--m)}.s span{color:var(--t);font-weight:600;font-variant-numeric:tabular-nums}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--bad);display:inline-block;margin-right:6px;box-shadow:0 0 8px var(--bad)}.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+#cam{top:76px;left:12px;width:340px;padding:8px}#cam .v{position:relative;aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#05080f}
+#cam img{width:100%;height:100%;object-fit:cover;display:block}#cam .nov{position:absolute;inset:0;display:grid;place-items:center;color:var(--m)}
+.live{position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:99px;background:rgba(255,93,108,.85);font-weight:800;font-size:11px;display:none}
+.live.on{display:block}.live:before{content:"";display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:#fff;animation:p 1.2s infinite}@keyframes p{50%{opacity:.2}}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;min-height:26px}.chip{padding:3px 10px;border-radius:99px;background:rgba(79,209,255,.18);border:1px solid rgba(79,209,255,.4)}
+#ctl{top:76px;right:12px;width:290px;display:grid;gap:10px}
+button,select,input{font:inherit;color:var(--t);background:rgba(255,255,255,.09);border:1px solid var(--b);border-radius:12px;padding:10px 12px}
+button{position:relative;overflow:hidden;cursor:pointer;font-weight:600;transition:transform .15s,background .2s,box-shadow .2s}
+button:hover{background:rgba(255,255,255,.18);box-shadow:0 6px 22px rgba(79,209,255,.25);transform:translateY(-1px)}button:active{transform:scale(.96)}button:disabled{opacity:.4;pointer-events:none}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}.row{display:flex;gap:8px}.row>*{flex:1;min-width:0}
+.rip{position:absolute;border-radius:50%;background:rgba(255,255,255,.4);transform:scale(0);animation:r .6s ease-out;pointer-events:none}@keyframes r{to{transform:scale(4);opacity:0}}
+.swipe{--c:61,220,151;--p:0;position:relative;height:54px;border-radius:27px;background:rgba(var(--c),.14);border:1px solid rgba(var(--c),.45);overflow:hidden;user-select:none;touch-action:none}
+.swipe.red{--c:255,93,108}.swipe.amb{--c:255,181,71}
+.swipe:before{content:"";position:absolute;inset:0;width:calc(var(--p)*100%);background:rgba(var(--c),.4)}
+.swipe .lbl{position:absolute;inset:0;display:grid;place-items:center;padding-left:40px;font-weight:700;background:linear-gradient(90deg,var(--m),#fff,var(--m));background-size:200%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:sh 2.6s linear infinite}
+@keyframes sh{to{background-position:-200%}}
+.knob{position:absolute;left:4px;top:4px;width:44px;height:44px;border-radius:50%;background:rgb(var(--c));display:grid;place-items:center;color:#06121c;font-weight:800;cursor:grab;transition:transform .35s cubic-bezier(.2,.9,.3,1.2);box-shadow:0 4px 14px rgba(var(--c),.6)}
+.knob:active{cursor:grabbing}
+#hud{bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:22px;align-items:center}
+.hz{width:84px;height:84px;border-radius:50%;overflow:hidden;position:relative;border:2px solid var(--b)}.hz i{position:absolute;inset:-60%;background:linear-gradient(#3b82c4 50%,#8a5a35 50%)}.hz:after{content:"";position:absolute;left:18%;right:18%;top:50%;height:2px;background:#fff}
+.big{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums}
+#log{bottom:12px;left:12px;width:270px;height:110px;overflow:auto;font-size:12px;color:var(--m)}
+.drone{font-size:30px;filter:drop-shadow(0 0 6px #000)}.leaflet-bottom.leaflet-right{margin-bottom:0}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media(max-width:900px){#cam{width:46vw}#ctl{width:48vw}#hud{display:none}}
+</style></head><body><div id="map"></div>
+<div id="top" class="glass"><b>Drone GCS</b><div class="s"><i class="dot" id="dot"></i><span id="conn">Offline</span></div>
+<div class="s">Mode <span id="mode">-</span></div><div class="s">Battery <span id="batt">-</span></div><div class="s">GPS <span id="gps">-</span></div>
+<div class="s">Payload <span id="pl">Loaded</span></div><button id="out">Sign out</button></div>
+<div id="cam" class="glass"><div class="v"><img id="vid" alt="Live camera"><div class="nov" id="nov">No camera signal</div><span class="live" id="live">LIVE</span></div>
+<div class="row" style="margin-top:8px"><button id="det">Detection on</button><div class="s" style="align-self:center;text-align:right"><span id="fps">0</span> fps</div></div><div class="chips" id="chips"></div></div>
+<div id="ctl" class="glass">
+ <div class="swipe" id="armsw"><div class="lbl" id="armlbl">Swipe to arm</div><div class="knob" tabindex="0">➜</div></div>
+ <div class="row"><select id="modes"></select><button id="setmode">Set mode</button></div>
+ <div class="row"><input id="talt" type="number" value="20" min="2" title="Altitude (m)"><button id="takeoff">Take off</button></div>
+ <button id="goto" disabled>Go to marked point</button><button id="rtl">Return to launch</button>
+ <div class="swipe amb" id="dropsw"><div class="lbl">Swipe to drop payload</div><div class="knob" tabindex="0">▼</div></div>
+ <button id="reset">Close hatch</button><div class="s" style="font-size:12px">Click the map to mark a point. Take off and go to need Guided mode.</div></div>
+<div id="hud" class="glass"><div class="hz"><i id="hz"></i></div>
+ <div><div class="s">Altitude</div><div class="big"><span id="alt">0</span> m</div></div><div><div class="s">Ground speed</div><div class="big"><span id="gs">0</span> m/s</div></div>
+ <div><div class="s">Heading</div><div class="big"><span id="hdg">0</span>°</div></div></div>
+<div id="log" class="glass"></div>
+<script>
+const $=id=>document.getElementById(id);let st={},target=null,tm=null,centered=false;
+const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'});
+const street=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'});
+const map=L.map('map',{layers:[sat],zoomControl:false}).setView([15.36,75.12],15);
+L.control.layers({Satellite:sat,Street:street},null,{position:'bottomright'}).addTo(map);L.control.zoom({position:'bottomright'}).addTo(map);
+const drone=L.marker([0,0],{icon:L.divIcon({html:'<div class="drone" id="dr">✈</div>',className:'',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(map),trail=L.polyline([],{color:'#4fd1ff',weight:3}).addTo(map);
+map.on('click',e=>{target=e.latlng;tm?tm.setLatLng(e.latlng):tm=L.circleMarker(e.latlng,{color:'#ffb547',radius:9}).addTo(map);$('goto').disabled=false});
+['Stabilize','AltHold','Loiter','Guided','Auto','RTL','Land'].forEach(m=>$('modes').add(new Option(m,m)));
+let ws;function connect(){ws=new WebSocket(`ws://${location.host}/ws`);ws.onmessage=e=>render(JSON.parse(e.data));ws.onclose=()=>setTimeout(connect,1500)}connect();
+const send=o=>ws&&ws.readyState==1&&ws.send(JSON.stringify(o));
+function render(s){st=s;$('dot').className='dot'+(s.connected?' on':'');$('conn').textContent=s.connected?'Connected':'Offline';
+ $('mode').textContent=s.mode+(s.armed?' · armed':' · disarmed');$('batt').textContent=s.batt<0?'-':`${s.batt}% ${s.volt.toFixed(1)}V`;
+ $('gps').textContent=`${s.sats} sats, fix ${s.fix}`;$('pl').textContent=s.dropped?'Dropped':'Loaded';
+ $('alt').textContent=s.alt.toFixed(1);$('gs').textContent=s.gs.toFixed(1);$('hdg').textContent=Math.round(s.hdg);
+ $('hz').style.transform=`rotate(${-s.roll}deg) translateY(${s.pitch*1.5}px)`;
+ $('armsw').classList.toggle('red',s.armed);$('armlbl').textContent=s.armed?'Swipe to disarm':'Swipe to arm';
+ $('det').textContent=s.detect?'Detection on':'Detection off';$('fps').textContent=s.fps;
+ $('live').classList.toggle('on',s.cam);$('nov').style.display=s.cam?'none':'grid';
+ if(s.cam&&!$('vid').src.includes('/video'))$('vid').src='/video';
+ $('chips').innerHTML=Object.entries(s.objects).map(([k,v])=>`<span class="chip">${k} × ${v}</span>`).join('')||'<span class="s">No objects detected</span>';
+ if(s.lat||s.lon){const p=[s.lat,s.lon];drone.setLatLng(p);trail.addLatLng(p);$('dr').style.transform=`rotate(${s.hdg-90}deg)`;if(!centered){map.setView(p,17);centered=true}}
+ $('log').innerHTML=s.log.slice().reverse().join('<br>')}
+function swipe(el,fire){const k=el.querySelector('.knob');let d=false,x0=0,x=0,max=0;
+ const go=v=>{x=v;k.style.transform=`translateX(${v}px)`;el.style.setProperty('--p',max?v/max:0)};
+ k.onpointerdown=e=>{d=true;x0=e.clientX-x;max=el.clientWidth-k.offsetWidth-8;k.setPointerCapture(e.pointerId);k.style.transition='none'};
+ k.onpointermove=e=>{if(d)go(Math.max(0,Math.min(max,e.clientX-x0)))};
+ k.onpointerup=()=>{if(!d)return;d=false;k.style.transition='';const done=x>max*.9;go(0);if(done)fire()};
+ k.onkeydown=e=>{if(e.key==='Enter')fire()}}
+swipe($('armsw'),()=>{if(st.armed||confirm('Arm motors? Make sure the area is clear.'))send({cmd:st.armed?'disarm':'arm'})});
+swipe($('dropsw'),()=>confirm('Release payload now?')&&send({cmd:'drop'}));
+$('setmode').onclick=()=>send({cmd:'mode',mode:$('modes').value});$('takeoff').onclick=()=>send({cmd:'takeoff',alt:$('talt').value});
+$('goto').onclick=()=>target&&send({cmd:'goto',lat:target.lat,lon:target.lng,alt:$('talt').value});
+$('rtl').onclick=()=>send({cmd:'mode',mode:'RTL'});$('reset').onclick=()=>send({cmd:'reset_drop'});$('det').onclick=()=>send({cmd:'detect'});
+$('out').onclick=async()=>{await fetch('/api/logout',{method:'POST'});location='/login'};
+document.addEventListener('pointerdown',e=>{const b=e.target.closest('button');if(!b)return;const r=b.getBoundingClientRect(),i=document.createElement('i');i.className='rip';
+ i.style.cssText=`width:30px;height:30px;left:${e.clientX-r.left-15}px;top:${e.clientY-r.top-15}px`;b.appendChild(i);setTimeout(()=>i.remove(),600)});
+</script></body></html>
